@@ -159,7 +159,7 @@ function makeTx(ageHours: number): FaucetTransaction {
     signature: "sig-" + Math.random().toString(36).slice(2),
     ip_address: "1234",
     wallet_address: VALID_WALLET,
-    github_username: "user-123",
+    github_id: "user-123",
     timestamp: Date.now() - ageHours * MS_PER_HOUR,
   };
 }

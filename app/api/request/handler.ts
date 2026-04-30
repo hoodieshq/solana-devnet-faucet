@@ -58,7 +58,7 @@ async function recordTransaction(
     signature,
     ctx.sanitizedIp,
     ctx.body.recipientAddress,
-    ctx.githubUserId ?? "",
+    ctx.githubUserId,
     Date.now(),
   );
 }

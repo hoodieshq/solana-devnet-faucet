@@ -45,8 +45,8 @@ export type FaucetTransaction = {
   ip_address: string;
   /** Requestor's Solana wallet address (base58) */
   wallet_address: string;
-  /** Requestor's GitHub user ID (empty string for bypass callers) */
-  github_username?: string;
+  /** Requestor's GitHub user ID (omitted for bypass callers) */
+  github_id?: string;
   /** Timestamp of the transaction */
   timestamp: number;
 };

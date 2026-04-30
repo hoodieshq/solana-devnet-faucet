@@ -197,6 +197,33 @@ describe("handleAirdrop", () => {
         process.env.IP_ALLOW_LIST = origEnv;
       }
     });
+
+    it("should pass undefined github_id to recordTransaction for bypass callers", async () => {
+      // Backend's githubIdSchema is `^\d+$` + .optional(): empty string fails
+      // the regex but `undefined` (omitted by JSON.stringify) is accepted.
+      const origEnv = process.env.IP_ALLOW_LIST;
+      process.env.IP_ALLOW_LIST = JSON.stringify(["1.2.3.4"]);
+
+      try {
+        await handleAirdrop(
+          buildCtx({
+            githubUserId: undefined,
+            skipCaptcha: false,
+            body: { recipientAddress: WALLET, amount: 1, network: "devnet", captchaToken: undefined },
+          }),
+        );
+
+        expect(transactionsAPI.create).toHaveBeenCalledWith(
+          "mock-sig",
+          expect.any(String),
+          WALLET,
+          undefined,
+          expect.any(Number),
+        );
+      } finally {
+        process.env.IP_ALLOW_LIST = origEnv;
+      }
+    });
   });
 });
 
