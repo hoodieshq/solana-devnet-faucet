@@ -82,15 +82,19 @@ async function buildContext(
     .get("authorization")
     ?.match(/^Bearer:?\s*(.+)/i)?.[1];
 
-  let raw: Record<string, unknown>;
+  let raw: unknown;
   try {
     raw = await req.json();
   } catch {
     throw new AirdropError(AirdropErrorCode.INVALID_BODY);
   }
 
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    throw new AirdropError(AirdropErrorCode.INVALID_BODY);
+  }
+
   const tier = resolveTier(githubUserId);
-  const body = validateBody(raw, tier);
+  const body = validateBody(raw as Record<string, unknown>, tier);
 
   return {
     ip,

@@ -14,7 +14,7 @@ export function getClientIp(req: Request): string | undefined {
     req.headers.get("cf-connecting-ipv6") ||
     req.headers.get("cf-connecting-ip") ||
     (process.env.NODE_ENV === "development" ? "::1" : undefined)
-  ) ?? undefined;
+  );
 }
 
 /**

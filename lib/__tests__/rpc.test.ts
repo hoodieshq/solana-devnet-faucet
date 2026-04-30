@@ -34,27 +34,39 @@ describe("VALID_NETWORKS", () => {
 });
 
 describe("getRpcUrl", () => {
-  const originalEnv = process.env;
-
+  // RPC_URLS is captured at module-import time, so each test must reset
+  // modules and re-import after stubbing env to actually exercise the
+  // fallback / override logic.
   beforeEach(() => {
-    vi.stubEnv("RPC_URL_DEVNET", undefined as unknown as string);
-    vi.stubEnv("RPC_URL_TESTNET", undefined as unknown as string);
+    vi.resetModules();
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
   });
 
-  it("should return default devnet URL when env is not set", () => {
-    // getRpcUrl reads from the module-level const which captured env at import time,
-    // so we test the function returns a string URL
-    const url = getRpcUrl("devnet");
-    expect(url).toMatch(/^https?:\/\//);
+  it("should fall back to default devnet URL when RPC_URL_DEVNET is unset", async () => {
+    vi.stubEnv("RPC_URL_DEVNET", undefined as unknown as string);
+    const { getRpcUrl } = await import("../rpc");
+    expect(getRpcUrl("devnet")).toBe("https://api.devnet.solana.com");
   });
 
-  it("should return default testnet URL when env is not set", () => {
-    const url = getRpcUrl("testnet");
-    expect(url).toMatch(/^https?:\/\//);
+  it("should fall back to default testnet URL when RPC_URL_TESTNET is unset", async () => {
+    vi.stubEnv("RPC_URL_TESTNET", undefined as unknown as string);
+    const { getRpcUrl } = await import("../rpc");
+    expect(getRpcUrl("testnet")).toBe("https://api.testnet.solana.com");
+  });
+
+  it("should use RPC_URL_DEVNET when set", async () => {
+    vi.stubEnv("RPC_URL_DEVNET", "https://custom.devnet.example/");
+    const { getRpcUrl } = await import("../rpc");
+    expect(getRpcUrl("devnet")).toBe("https://custom.devnet.example/");
+  });
+
+  it("should use RPC_URL_TESTNET when set", async () => {
+    vi.stubEnv("RPC_URL_TESTNET", "https://custom.testnet.example/");
+    const { getRpcUrl } = await import("../rpc");
+    expect(getRpcUrl("testnet")).toBe("https://custom.testnet.example/");
   });
 });
 

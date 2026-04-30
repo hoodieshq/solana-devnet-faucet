@@ -83,6 +83,40 @@ describe("POST /api/request", () => {
       expect(res.status).toBe(400);
     });
 
+    it("should return 400 for null body", async () => {
+      const req = new Request("http://localhost/api/request", {
+        method: "POST",
+        headers: {
+          "cf-connecting-ip": "1.2.3.4",
+          "content-type": "application/json",
+          "x-test-session": JSON.stringify({
+            user: { githubUserId: "user-123" },
+          }),
+        },
+        body: "null",
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(400);
+    });
+
+    it("should return 400 for array body", async () => {
+      const req = new Request("http://localhost/api/request", {
+        method: "POST",
+        headers: {
+          "cf-connecting-ip": "1.2.3.4",
+          "content-type": "application/json",
+          "x-test-session": JSON.stringify({
+            user: { githubUserId: "user-123" },
+          }),
+        },
+        body: "[]",
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(400);
+    });
+
     it("should return 400 for invalid wallet in body", async () => {
       const res = await POST(buildRequest({ walletAddress: "bad" }));
       expect(res.status).toBe(400);
