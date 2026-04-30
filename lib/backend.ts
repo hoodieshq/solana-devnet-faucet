@@ -63,11 +63,6 @@ const solanaBalancesAPI = {
       body: JSON.stringify({ account, balance }),
     });
   },
-  getAllForAccount: async (account: string) => {
-    return fetchRequest(`${BASE_URL}/solana-balances/account/${account}`, {
-      method: 'GET',
-    });
-  },
   getRecent: async () => {
     return fetchRequest(`${BASE_URL}/solana-balances/recent`, {
       method: 'GET',
@@ -118,20 +113,8 @@ const validationAPI = {
   }
 };
 
-// Github Validation API
-const githubValidationAPI = {
-  ghValidation: async (userId: string) => {
-    return fetchRequest(`${BASE_URL}/gh-validation/${userId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-  },
-};
-
 // Export the API objects
-export { solanaBalancesAPI, transactionsAPI, githubValidationAPI, validationAPI };
+export { solanaBalancesAPI, transactionsAPI, validationAPI };
 
 
 
