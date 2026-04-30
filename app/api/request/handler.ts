@@ -1,0 +1,64 @@
+import { transactionsAPI } from "@/lib/backend";
+
+import { AirdropError, AirdropErrorCode } from "./airdrop-error";
+import { isAuthorizedToBypass } from "./auth-bypass";
+import { isAllowListedIp } from "./ip";
+import { enforceRateLimits } from "./rate-limiting";
+import { verifyCaptcha } from "./verify-captcha";
+import { executeAirdrop } from "./execute-airdrop";
+import type { RequestContext } from "./types";
+
+export type AirdropResult =
+  | { success: true; signature: string }
+  | { success: false; error: AirdropError };
+
+export async function handleAirdrop(
+  ctx: RequestContext,
+): Promise<AirdropResult> {
+  try {
+    const canBypass =
+      isAuthorizedToBypass(ctx.authToken) || isAllowListedIp(ctx.ip);
+
+    if (!canBypass) {
+      // GitHub auth is always required (bot protection), not a toggleable flag.
+      const { githubUserId } = ctx;
+      if (!githubUserId) {
+        throw new AirdropError(AirdropErrorCode.GITHUB_AUTH_REQUIRED);
+      }
+      await verifyCaptcha(ctx);
+      await enforceRateLimits({ ...ctx, githubUserId });
+    }
+
+    const signature = await executeAirdrop(ctx);
+
+    try {
+      await recordTransaction(ctx, signature);
+    } catch (err) {
+      console.error("[AIRDROP] Failed to record transaction:", err);
+    }
+
+    return { success: true, signature };
+  } catch (err) {
+    if (err instanceof AirdropError) {
+      return { success: false, error: err };
+    }
+
+    return {
+      success: false,
+      error: new AirdropError(AirdropErrorCode.TX_FAILED, { cause: err }),
+    };
+  }
+}
+
+async function recordTransaction(
+  ctx: RequestContext,
+  signature: string,
+): Promise<void> {
+  await transactionsAPI.create(
+    signature,
+    ctx.sanitizedIp,
+    ctx.body.recipientAddress,
+    ctx.githubUserId,
+    Date.now(),
+  );
+}

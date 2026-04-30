@@ -22,7 +22,8 @@ declare namespace NodeJS {
     /**
      * General variables and settings
      */
-    RPC_URL: string;
+    RPC_URL_DEVNET: string;
+    RPC_URL_TESTNET: string;
     FAUCET_KEYPAIR_NEW: string;
 
     CLOUDFLARE_SECRET: string;
