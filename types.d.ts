@@ -24,22 +24,22 @@ declare namespace NodeJS {
      */
     RPC_URL: string;
     FAUCET_KEYPAIR_NEW: string;
-    // NEXT_PUBLIC_RPC_URL: string;
 
-    POSTGRES_STRING: string;
     CLOUDFLARE_SECRET: string;
     IP_ALLOW_LIST: string;
+    AUTH_TOKENS_ALLOW_LIST: string;
+
+    /**
+     * Backend API authentication
+     */
+    BE_TOKEN: string;
+    BE_SERVICE_ACCOUNT_KEY: string;
 
     /**
      * Auth related variables
      */
-
-    // GITHUB_ID: string;
+    NEXTAUTH_SECRET: string;
     GITHUB_CLIENT_ID: string;
     GITHUB_CLIENT_SECRET: string;
-    // GITHUB_ACCESS_TOKEN: string;
-
-    // TWITTER_CLIENT_ID: string;
-    // TWITTER_CLIENT_SECRET: string;
   }
 }
