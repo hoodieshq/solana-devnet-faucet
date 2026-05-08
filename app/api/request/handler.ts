@@ -20,7 +20,6 @@ export async function handleAirdrop(
       isAuthorizedToBypass(ctx.authToken) || isAllowListedIp(ctx.ip);
 
     if (!canBypass) {
-      // GitHub auth is always required (bot protection), not a toggleable flag.
       const { githubUserId } = ctx;
       if (!githubUserId) {
         throw new AirdropError(AirdropErrorCode.GITHUB_AUTH_REQUIRED);

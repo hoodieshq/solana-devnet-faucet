@@ -5,6 +5,7 @@ import { isAuthorizedToBypass } from "../auth-bypass";
 describe("isAuthorizedToBypass", () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
+    vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   it("should return false for undefined token", () => {

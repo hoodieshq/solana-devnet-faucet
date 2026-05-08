@@ -22,6 +22,8 @@ function parseAuthTokenAllowList(): AuthToken[] {
   try {
     raw = JSON.parse(process.env.AUTH_TOKENS_ALLOW_LIST || "[]");
   } catch {
+    // Don't log the parse error — its message can echo bytes from the env var.
+    console.error("[AUTH-BYPASS] AUTH_TOKENS_ALLOW_LIST is not valid JSON; bypass disabled");
     return [];
   }
 
