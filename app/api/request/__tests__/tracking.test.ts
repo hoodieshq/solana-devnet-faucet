@@ -7,7 +7,7 @@ vi.mock("@/lib/analytics", () => ({
   trackEvent: vi.fn(),
 }));
 
-import { trackSuccess, trackError } from "../tracking";
+import { trackSuccess, trackError, trackBypass } from "../tracking";
 import { AirdropError, AirdropErrorCode } from "../airdrop-error";
 import { trackEvent } from "@/lib/analytics";
 import type { RequestContext } from "../types";
@@ -48,6 +48,47 @@ describe("trackSuccess", () => {
       expect.objectContaining({ has_github: "no" }),
       "client-1",
     );
+  });
+});
+
+describe("trackBypass", () => {
+  it("should send airdrop_bypass_requested with auth_token reason", () => {
+    const ctx = buildCtx({ authToken: "secret-token" });
+
+    trackBypass("client-1", ctx, "auth_token");
+
+    expect(trackEvent).toHaveBeenCalledWith(
+      "airdrop_bypass_requested",
+      {
+        network: "devnet",
+        amount: 1,
+        has_github: "yes",
+        wallet: "8rWi...6bBi",
+        bypass_reason: "auth_token",
+      },
+      "client-1",
+    );
+  });
+
+  it("should send airdrop_bypass_requested with allow_listed_ip reason", () => {
+    const ctx = buildCtx();
+
+    trackBypass("client-1", ctx, "allow_listed_ip");
+
+    expect(trackEvent).toHaveBeenCalledWith(
+      "airdrop_bypass_requested",
+      expect.objectContaining({ bypass_reason: "allow_listed_ip" }),
+      "client-1",
+    );
+  });
+
+  it("should not include the raw auth token in the payload", () => {
+    const ctx = buildCtx({ authToken: "super-secret" });
+
+    trackBypass("client-1", ctx, "auth_token");
+
+    const payload = (trackEvent as unknown as { mock: { calls: unknown[][] } }).mock.calls[0][1];
+    expect(JSON.stringify(payload)).not.toContain("super-secret");
   });
 });
 

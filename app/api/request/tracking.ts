@@ -18,6 +18,23 @@ export function trackSuccess(
   );
 }
 
+export type BypassReason = "auth_token" | "allow_listed_ip";
+
+export function trackBypass(
+  clientId: string,
+  ctx: RequestContext,
+  reason: BypassReason,
+): void {
+  trackEvent(
+    "airdrop_bypass_requested",
+    {
+      ...extractTrackingParams(ctx),
+      bypass_reason: reason,
+    },
+    clientId,
+  );
+}
+
 export function trackError(
   clientId: string,
   ctx: RequestContext,

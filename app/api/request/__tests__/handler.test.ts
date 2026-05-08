@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Keypair } from "@solana/web3.js";
 
 import { AIRDROP_TIERS } from "@/lib/airdrop";
@@ -21,11 +21,16 @@ vi.mock("@solana-developers/helpers", () => ({
   sendTransaction: vi.fn().mockResolvedValue("mock-sig"),
 }));
 
+vi.mock("@/lib/analytics", () => ({
+  trackEvent: vi.fn(),
+}));
+
 import { handleAirdrop } from "../handler";
 import type { RequestContext } from "../types";
 import { transactionsAPI, validationAPI } from "@/lib/backend";
 import { checkCloudflare } from "@/lib/cloudflare";
 import { sendTransaction } from "@solana-developers/helpers";
+import { trackEvent } from "@/lib/analytics";
 
 const WALLET = Keypair.generate().publicKey.toBase58();
 
@@ -177,11 +182,16 @@ describe("handleAirdrop", () => {
   });
 
   describe("auth bypass", () => {
-    it("should skip captcha and rate limits for allow-listed IPs", async () => {
-      const origEnv = process.env.IP_ALLOW_LIST;
-      process.env.IP_ALLOW_LIST = JSON.stringify(["1.2.3.4"]);
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
 
-      try {
+    describe("with allow-listed IP", () => {
+      beforeEach(() => {
+        vi.stubEnv("IP_ALLOW_LIST", JSON.stringify(["1.2.3.4"]));
+      });
+
+      it("should skip captcha and rate limits", async () => {
         const result = await handleAirdrop(
           buildCtx({
             githubUserId: undefined,
@@ -193,18 +203,16 @@ describe("handleAirdrop", () => {
         expect(result.success).toBe(true);
         expect(checkCloudflare).not.toHaveBeenCalled();
         expect(validationAPI.validate).not.toHaveBeenCalled();
-      } finally {
-        process.env.IP_ALLOW_LIST = origEnv;
-      }
-    });
+        expect(trackEvent).toHaveBeenCalledWith(
+          "airdrop_bypass_requested",
+          expect.objectContaining({ bypass_reason: "allow_listed_ip" }),
+          "1234",
+        );
+      });
 
-    it("should pass undefined github_id to recordTransaction for bypass callers", async () => {
-      // Backend's githubIdSchema is `^\d+$` + .optional(): empty string fails
-      // the regex but `undefined` (omitted by JSON.stringify) is accepted.
-      const origEnv = process.env.IP_ALLOW_LIST;
-      process.env.IP_ALLOW_LIST = JSON.stringify(["1.2.3.4"]);
-
-      try {
+      it("should pass undefined github_id to recordTransaction for bypass callers", async () => {
+        // Backend's githubIdSchema is `^\d+$` + .optional(): empty string fails
+        // the regex but `undefined` (omitted by JSON.stringify) is accepted.
         await handleAirdrop(
           buildCtx({
             githubUserId: undefined,
@@ -220,9 +228,44 @@ describe("handleAirdrop", () => {
           undefined,
           expect.any(Number),
         );
-      } finally {
-        process.env.IP_ALLOW_LIST = origEnv;
-      }
+      });
+    });
+
+    describe("with allow-listed auth token", () => {
+      beforeEach(() => {
+        vi.stubEnv(
+          "AUTH_TOKENS_ALLOW_LIST",
+          JSON.stringify([{ token: "ci-token", name: "CI" }]),
+        );
+      });
+
+      it("should emit auth_token bypass event", async () => {
+        const result = await handleAirdrop(
+          buildCtx({
+            authToken: "ci-token",
+            githubUserId: undefined,
+            skipCaptcha: false,
+            body: { recipientAddress: WALLET, amount: 1, network: "devnet", captchaToken: undefined },
+          }),
+        );
+
+        expect(result.success).toBe(true);
+        expect(trackEvent).toHaveBeenCalledWith(
+          "airdrop_bypass_requested",
+          expect.objectContaining({ bypass_reason: "auth_token" }),
+          "1234",
+        );
+      });
+    });
+
+    it("should not emit bypass event when not bypassed", async () => {
+      await handleAirdrop(buildCtx());
+
+      expect(trackEvent).not.toHaveBeenCalledWith(
+        "airdrop_bypass_requested",
+        expect.anything(),
+        expect.anything(),
+      );
     });
   });
 });

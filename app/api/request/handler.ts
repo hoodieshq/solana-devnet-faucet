@@ -6,6 +6,7 @@ import { isAllowListedIp } from "./ip";
 import { enforceRateLimits } from "./rate-limiting";
 import { verifyCaptcha } from "./verify-captcha";
 import { executeAirdrop } from "./execute-airdrop";
+import { trackBypass } from "./tracking";
 import type { RequestContext } from "./types";
 
 export type AirdropResult =
@@ -16,10 +17,16 @@ export async function handleAirdrop(
   ctx: RequestContext,
 ): Promise<AirdropResult> {
   try {
-    const canBypass =
-      isAuthorizedToBypass(ctx.authToken) || isAllowListedIp(ctx.ip);
+    const tokenBypass = isAuthorizedToBypass(ctx.authToken);
+    const canBypass = tokenBypass || isAllowListedIp(ctx.ip);
 
-    if (!canBypass) {
+    if (canBypass) {
+      trackBypass(
+        ctx.sanitizedIp,
+        ctx,
+        tokenBypass ? "auth_token" : "allow_listed_ip",
+      );
+    } else {
       const { githubUserId } = ctx;
       if (!githubUserId) {
         throw new AirdropError(AirdropErrorCode.GITHUB_AUTH_REQUIRED);
