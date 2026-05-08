@@ -23,7 +23,7 @@ declare namespace NodeJS {
      * General variables and settings
      */
     RPC_URL: string;
-    FAUCET_KEYPAIR: string;
+    FAUCET_KEYPAIR_NEW: string;
 
     CLOUDFLARE_SECRET: string;
     IP_ALLOW_LIST: string;
