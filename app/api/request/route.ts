@@ -96,14 +96,31 @@ async function buildContext(
   const tier = resolveTier(githubUserId);
   const body = validateBody(raw as Record<string, unknown>, tier);
 
-  return {
+  const ctx = {
     ip,
     sanitizedIp,
-    faucetKeypair,
-    authToken,
     githubUserId,
     tier,
     skipCaptcha: process.env.NODE_ENV === "development",
     body,
-  };
+  } as RequestContext;
+
+  // Sensitive fields are non-enumerable (skipped by spread/Object.keys/default console.log); toJSON emits "<redacted>" placeholders so logs show presence without leaking values.
+  Object.defineProperties(ctx, {
+    faucetKeypair: { value: faucetKeypair, enumerable: false },
+    authToken: { value: authToken, enumerable: false },
+    toJSON: {
+      value(this: RequestContext) {
+        const { faucetKeypair: kp, authToken: tok, ...safe } = this;
+        return {
+          ...safe,
+          ...(kp && { faucetKeypair: "<redacted>" }),
+          ...(tok && { authToken: "<redacted>" }),
+        };
+      },
+      enumerable: false,
+    },
+  });
+
+  return ctx;
 }

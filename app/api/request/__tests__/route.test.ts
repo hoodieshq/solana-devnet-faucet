@@ -158,6 +158,47 @@ describe("POST /api/request", () => {
       );
     });
   });
+
+  describe("sensitive field redaction", () => {
+    it("should keep faucetKeypair and authToken accessible to consumers", async () => {
+      await POST(buildRequest({}, { authorization: "Bearer secret-token" }));
+
+      const ctx = vi.mocked(handleAirdrop).mock.calls[0][0];
+      expect(ctx.faucetKeypair).toBeDefined();
+      expect(ctx.authToken).toBe("secret-token");
+    });
+
+    it("should hide sensitive fields from Object.keys and spread", async () => {
+      await POST(buildRequest({}, { authorization: "Bearer secret-token" }));
+
+      const ctx = vi.mocked(handleAirdrop).mock.calls[0][0];
+      expect(Object.keys(ctx)).not.toContain("faucetKeypair");
+      expect(Object.keys(ctx)).not.toContain("authToken");
+      expect({ ...ctx }).not.toHaveProperty("faucetKeypair");
+      expect({ ...ctx }).not.toHaveProperty("authToken");
+    });
+
+    it("should redact sensitive fields in JSON.stringify", async () => {
+      await POST(buildRequest({}, { authorization: "Bearer secret-token" }));
+
+      const ctx = vi.mocked(handleAirdrop).mock.calls[0][0];
+      const json = JSON.stringify(ctx);
+      expect(json).not.toContain("secret-token");
+      expect(JSON.parse(json)).toMatchObject({
+        faucetKeypair: "<redacted>",
+        authToken: "<redacted>",
+      });
+    });
+
+    it("should omit authToken redaction placeholder when not present", async () => {
+      await POST(buildRequest());
+
+      const ctx = vi.mocked(handleAirdrop).mock.calls[0][0];
+      const parsed = JSON.parse(JSON.stringify(ctx));
+      expect(parsed).toMatchObject({ faucetKeypair: "<redacted>" });
+      expect(parsed).not.toHaveProperty("authToken");
+    });
+  });
 });
 
 function buildRequest(
