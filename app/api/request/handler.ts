@@ -18,21 +18,24 @@ export async function handleAirdrop(
 ): Promise<AirdropResult> {
   try {
     const tokenBypass = isAuthorizedToBypass(ctx.authToken);
-    const canBypass = tokenBypass || isAllowListedIp(ctx.ip);
+    const ipBypass = isAllowListedIp(ctx.ip);
 
-    if (canBypass) {
-      trackBypass(
-        ctx.sanitizedIp,
-        ctx,
-        tokenBypass ? "auth_token" : "allow_listed_ip",
-      );
-    } else {
+    if (!tokenBypass) {
       const { githubUserId } = ctx;
       if (!githubUserId) {
         throw new AirdropError(AirdropErrorCode.GITHUB_AUTH_REQUIRED);
       }
       await verifyCaptcha(ctx);
-      await enforceRateLimits({ ...ctx, githubUserId });
+
+      if (!ipBypass) {
+        await enforceRateLimits({ ...ctx, githubUserId });
+      }
+    }
+
+    if (tokenBypass) {
+      trackBypass(ctx.sanitizedIp, ctx, "auth_token");
+    } else if (ipBypass) {
+      trackBypass(ctx.sanitizedIp, ctx, "allow_listed_ip");
     }
 
     const signature = await executeAirdrop(ctx);

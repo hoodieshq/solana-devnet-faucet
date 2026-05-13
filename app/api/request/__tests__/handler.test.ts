@@ -191,9 +191,65 @@ describe("handleAirdrop", () => {
         vi.stubEnv("IP_ALLOW_LIST", JSON.stringify(["1.2.3.4"]));
       });
 
-      it("should skip captcha and rate limits", async () => {
+      it("should skip rate limits but still require GitHub auth and captcha", async () => {
+        const result = await handleAirdrop(
+          buildCtx({ skipCaptcha: false }),
+        );
+
+        expect(result.success).toBe(true);
+        expect(checkCloudflare).toHaveBeenCalled();
+        expect(validationAPI.validate).not.toHaveBeenCalled();
+        expect(trackEvent).toHaveBeenCalledWith(
+          "airdrop_bypass_requested",
+          expect.objectContaining({ bypass_reason: "allow_listed_ip" }),
+          "1234",
+        );
+      });
+
+      // Regression: a spoofed cf-connecting-ip must not unlock GitHub-auth
+      // and captcha gates, only the rate-limit gate.
+      it("should reject when GitHub session is missing", async () => {
         const result = await handleAirdrop(
           buildCtx({
+            githubUserId: undefined,
+            skipCaptcha: false,
+            body: { recipientAddress: WALLET, amount: 1, network: "devnet", captchaToken: undefined },
+          }),
+        );
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.code).toBe("github_auth_required");
+        }
+        expect(checkCloudflare).not.toHaveBeenCalled();
+      });
+
+      it("should reject when captcha fails", async () => {
+        vi.mocked(checkCloudflare).mockResolvedValue(false);
+
+        const result = await handleAirdrop(
+          buildCtx({ skipCaptcha: false }),
+        );
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.code).toBe("captcha_failed");
+        }
+      });
+    });
+
+    describe("with allow-listed auth token", () => {
+      beforeEach(() => {
+        vi.stubEnv(
+          "AUTH_TOKENS_ALLOW_LIST",
+          JSON.stringify([{ token: "ci-token", name: "CI" }]),
+        );
+      });
+
+      it("should skip GitHub auth, captcha, and rate limits", async () => {
+        const result = await handleAirdrop(
+          buildCtx({
+            authToken: "ci-token",
             githubUserId: undefined,
             skipCaptcha: false,
             body: { recipientAddress: WALLET, amount: 1, network: "devnet", captchaToken: undefined },
@@ -205,16 +261,17 @@ describe("handleAirdrop", () => {
         expect(validationAPI.validate).not.toHaveBeenCalled();
         expect(trackEvent).toHaveBeenCalledWith(
           "airdrop_bypass_requested",
-          expect.objectContaining({ bypass_reason: "allow_listed_ip" }),
+          expect.objectContaining({ bypass_reason: "auth_token" }),
           "1234",
         );
       });
 
-      it("should pass undefined github_id to recordTransaction for bypass callers", async () => {
+      it("should pass undefined github_id to recordTransaction for token bypass callers", async () => {
         // Backend's githubIdSchema is `^\d+$` + .optional(): empty string fails
         // the regex but `undefined` (omitted by JSON.stringify) is accepted.
         await handleAirdrop(
           buildCtx({
+            authToken: "ci-token",
             githubUserId: undefined,
             skipCaptcha: false,
             body: { recipientAddress: WALLET, amount: 1, network: "devnet", captchaToken: undefined },
@@ -227,33 +284,6 @@ describe("handleAirdrop", () => {
           WALLET,
           undefined,
           expect.any(Number),
-        );
-      });
-    });
-
-    describe("with allow-listed auth token", () => {
-      beforeEach(() => {
-        vi.stubEnv(
-          "AUTH_TOKENS_ALLOW_LIST",
-          JSON.stringify([{ token: "ci-token", name: "CI" }]),
-        );
-      });
-
-      it("should emit auth_token bypass event", async () => {
-        const result = await handleAirdrop(
-          buildCtx({
-            authToken: "ci-token",
-            githubUserId: undefined,
-            skipCaptcha: false,
-            body: { recipientAddress: WALLET, amount: 1, network: "devnet", captchaToken: undefined },
-          }),
-        );
-
-        expect(result.success).toBe(true);
-        expect(trackEvent).toHaveBeenCalledWith(
-          "airdrop_bypass_requested",
-          expect.objectContaining({ bypass_reason: "auth_token" }),
-          "1234",
         );
       });
     });
