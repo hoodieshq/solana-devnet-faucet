@@ -37,6 +37,13 @@ declare namespace NodeJS {
     BE_SERVICE_ACCOUNT_KEY: string;
 
     /**
+     * Server-side analytics (GA4 Measurement Protocol). Optional —
+     * trackEvent() is a no-op when either is unset.
+     */
+    GA4_MEASUREMENT_ID: string;
+    GA4_API_SECRET: string;
+
+    /**
      * Auth related variables
      */
     NEXTAUTH_SECRET: string;
